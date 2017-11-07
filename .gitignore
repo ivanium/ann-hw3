@@ -1,0 +1,7 @@
+HW3.pdf
+.DS_Store
+*.pyc
+/hw3-cnn/train
+/hw3-mlp/train
+/hw3-cnn/MNIST_data
+/hw3-mlp/MNIST_data
