@@ -40,6 +40,9 @@ class Model:
         self.pred = tf.argmax(logits, 1)
         self.acc = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
 
+        tf.summary.scalar('train loss', self.loss)
+        tf.summary.scalar('train acc', self.acc)
+
         self.learning_rate = tf.Variable(float(learning_rate), trainable=False,
                                          dtype=tf.float32)
         self.learning_rate_decay_op = self.learning_rate.assign(self.learning_rate * learning_rate_decay_factor)
@@ -94,12 +97,12 @@ def batch_normalization_layer(inputs, isTrain=True, name=''):
         # update_var = tf.assign_add(epoch_var, var)
         # update_size = tf.assign_add(epoch_size, tf.constant(1.))
         
-        # mean = update_mean2 / update_size2
-        # var = update_var2 / update_size2
+        mean = update_mean2 / update_size2
+        var = update_var2 / update_size2
         # mean = update_mean
         # var = update_var
         # mean = mean
-        var = var - var
+        # var = var - var
     
     return tf.nn.batch_normalization(inputs, mean, var, beta, gamma, epsilon)
 
