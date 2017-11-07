@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import tensorflow as tf
+from tensorflow.python.training import moving_averages
 
 
 class Model:
@@ -12,33 +13,23 @@ class Model:
         self.y_ = tf.placeholder(tf.int32, [None])
         self.keep_prob = tf.placeholder(tf.float32)
 
-        self.total_mean1 = tf.Variable(tf.constant(0., shape=[3]))
-        self.total_var1  = tf.Variable(tf.constant(0., shape=[3]))
-        self.total_num1  = 0
-        self.total_mean2 = tf.Variable(tf.constant(0., shape=[6]))
-        self.total_var2  = tf.Variable(tf.constant(0., shape=[6]))
-        self.total_num2  = 0
-
-
         x = tf.reshape(self.x_, [-1, 28, 28, 1])
 
         # TODO: implement input -- Conv -- BN -- ReLU -- MaxPool -- Conv -- BN -- ReLU -- MaxPool -- Linear -- loss
-        W_conv1 = weight_variable([5, 5, 1, 3])
-        b_conv1 = bias_variable([3])
-        bnl1 =    batch_normalization_layer(conv2d(x, W_conv1) + b_conv1, self.total_mean1, 
-            self.total_var1, self.total_num1, is_train)
+        W_conv1 = weight_variable([5, 5, 1, 2])
+        b_conv1 = bias_variable([2])
+        bnl1 =    batch_normalization_layer(conv2d(x, W_conv1) + b_conv1, is_train, '1')
         h_conv1 = tf.nn.relu(bnl1)
         h_pool1 = max_pool2x2(h_conv1)
 
-        W_conv2 = weight_variable([5, 5, 3, 6])
-        b_conv2 = bias_variable([6])
-        bnl2    = batch_normalization_layer(conv2d(h_pool1, W_conv2) + b_conv2, self.total_mean2, 
-            self.total_var2, self.total_num2, is_train)
+        W_conv2 = weight_variable([5, 5, 2, 4])
+        b_conv2 = bias_variable([4])
+        bnl2    = batch_normalization_layer(conv2d(h_pool1, W_conv2) + b_conv2, is_train, '2')
         h_conv2 = tf.nn.relu(bnl2)
         h_pool2 = max_pool2x2(h_conv2)
 
-        h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*6])
-        W_linear = weight_variable([7*7*6, 10])
+        h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*4])
+        W_linear = weight_variable([7*7*4, 10])
         b_linear = bias_variable([10])
         logits = tf.matmul(h_pool2_flat, W_linear) + b_linear
         #        the 10-class prediction output is named as "logits"
@@ -72,28 +63,45 @@ def bias_variable(shape):  # you can use this func to build new variables
     return tf.Variable(initial)
 
 
-def batch_normalization_layer(inputs, total_mean, total_var, total_num, isTrain=True):
+def batch_normalization_layer(inputs, isTrain=True, name=''):
     # TODO: implemented the batch normalization func and applied it on conv and fully-connected layers
     # hint: you can add extra parameters (e.g., shape) if necessary
     epsilon = 0.0001
     inputs_shape = inputs.get_shape()
-    # inputs_shape[0] = 1
-    channel = int(inputs_shape[-1])
-    gamma = weight_variable([channel])
-    beta = bias_variable([channel])
-    if(isTrain):
-        mean = tf.reduce_mean(tf.reduce_mean(tf.reduce_mean(inputs, 0), 0), 0) #shape: [1,c]
-        var = tf.reduce_mean(tf.pow(inputs - mean, 2), 0)
-        total_mean = total_mean + mean
-        total_var  = total_var + var
-        total_num  = total_num + 1
-        inputs_normed = (inputs - mean) / tf.sqrt(var + epsilon)
-        return tf.multiply(inputs_normed, gamma) + beta
-    else:
-        mean = total_mean / total_num
-        var = total_var / total_num
-        inputs_normed = (inputs - mean) / tf.sqrt(var + epsilon)
-        return tf.multiply(inputs_normed, gamma) + beta
+    channel_shape = [int(inputs_shape[-1])]
+    axis = list(range(len(inputs_shape) - 1))
+
+    gamma = weight_variable(channel_shape)
+    beta = bias_variable(channel_shape)
+
+    epoch_mean = tf.get_variable('epoch_mean'+name, shape=channel_shape, dtype=tf.float32, 
+        initializer=tf.zeros_initializer, trainable=False)
+    epoch_var = tf.get_variable('epoch_var'+name, shape=channel_shape, dtype=tf.float32, 
+        initializer=tf.zeros_initializer, trainable=False)
+    epoch_size = tf.get_variable('epoch_size'+name, shape=[], dtype=tf.float32, 
+        initializer=tf.zeros_initializer, trainable=False)
+
+
+    mean, var = tf.nn.moments(inputs, axis)
+    update_mean2 = tf.assign_add(epoch_mean, mean)
+    update_var2 = tf.assign_add(epoch_var, var)
+    update_size2 = tf.assign_add(epoch_size, tf.constant(1.))
+    update_mean = moving_averages.assign_moving_average(epoch_mean, mean, 0.9997)
+    update_var = moving_averages.assign_moving_average(epoch_var, var, 0.9997)
+
+    if(not isTrain):
+        # update_mean = tf.assign_add(epoch_mean, mean)
+        # update_var = tf.assign_add(epoch_var, var)
+        # update_size = tf.assign_add(epoch_size, tf.constant(1.))
+        
+        # mean = update_mean2 / update_size2
+        # var = update_var2 / update_size2
+        # mean = update_mean
+        # var = update_var
+        # mean = mean
+        var = var - var
+    
+    return tf.nn.batch_normalization(inputs, mean, var, beta, gamma, epsilon)
 
 
 def conv2d(x, W):
