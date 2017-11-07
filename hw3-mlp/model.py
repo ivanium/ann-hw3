@@ -17,7 +17,7 @@ class Model:
         X = self.x_
         W1 = weight_variable([28*28, 100])
         b1 = bias_variable([100])
-        bnl1 = batch_normalization_layer(tf.matmul(X, W1) + b1, is_train)
+        bnl1 = batch_normalization_layer(tf.matmul(X, W1) + b1, is_train, '1')
         h1 = tf.nn.relu(bnl1)
         W_l = weight_variable([100, 10])
         b_l = bias_variable([10])
@@ -55,7 +55,7 @@ def bias_variable(shape):  # you can use this func to build new variables
     return tf.Variable(initial)
 
 
-def batch_normalization_layer(inputs, isTrain=True):
+def batch_normalization_layer(inputs, isTrain=True, name=''):
     # TODO: implemented the batch normalization func and applied it on fully-connected layers
     epsilon = 0.0001
     inputs_shape = inputs.get_shape()
@@ -65,11 +65,11 @@ def batch_normalization_layer(inputs, isTrain=True):
     gamma = weight_variable(length_shape)
     beta = bias_variable(length_shape)
     
-    epoch_mean = tf.get_variable('epoch_mean', shape=length_shape, dtype=tf.float32, 
+    epoch_mean = tf.get_variable('epoch_mean'+name, shape=length_shape, dtype=tf.float32, 
         initializer=tf.zeros_initializer, trainable=False)
-    epoch_var = tf.get_variable('epoch_var', shape=length_shape, dtype=tf.float32, 
+    epoch_var = tf.get_variable('epoch_var'+name, shape=length_shape, dtype=tf.float32, 
         initializer=tf.zeros_initializer, trainable=False)
-    epoch_size = tf.get_variable('epoch_size', shape=[], dtype=tf.float32, 
+    epoch_size = tf.get_variable('epoch_size'+name, shape=[], dtype=tf.float32, 
         initializer=tf.zeros_initializer, trainable=False)
 
     mean, var = tf.nn.moments(inputs, axis)
